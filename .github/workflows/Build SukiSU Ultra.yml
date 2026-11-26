@@ -186,7 +186,7 @@ jobs:
         run: |
           set -e
           sudo apt-get update
-          sudo apt-get install -y python3 git curl ccache libelf-dev build-essential flex bison libssl-dev libncurses-dev liblz4-tool zlib1g-dev libxml2-utils rsync unzip gawk dos2unix
+          sudo apt-get install -y python3 git curl ccache libelf-dev build-essential flex bison libssl-dev libncurses-dev lz4 zlib1g-dev libxml2-utils rsync unzip gawk dos2unix
           command -v ccache >/dev/null 2>&1 || { echo "❌ ccache 安装失败"; exit 1; }
           echo "✅ 构建依赖安装完成，ccache: $(command -v ccache)"
 
