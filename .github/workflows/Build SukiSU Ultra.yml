@@ -98,6 +98,15 @@ on:
            - 'On'
            - 'Off'
        default: 'On'
+
+      UNICODE_BYPASS:
+       description: "是否修复 Unicode 不可见字码点绕过读取漏洞"
+       required: true
+       type: choice
+       options:
+          - 'On'
+          - 'Off'
+       default: 'On'
        
       lz4kd:
        description: "是否启用lz4kd(6.1 关闭时使用 lz4 + zstd; 6.6 关闭时使用 lz4)"
@@ -318,7 +327,6 @@ jobs:
           cp ../kernel_patches/zram/001-lz4.patch ./common/
           cp ../kernel_patches/zram/lz4armv8.S ./common/lib
           cp ../kernel_patches/zram/002-zstd.patch ./common/
-          cp ../kernel_patches/common/unicode_bypass_fix_6.1+.patch ./common/
           
           if [ "${{ github.event.inputs.lz4kd }}" == "On" ]; then
             # Copy lz4k from ShirkNeko
@@ -357,10 +365,35 @@ jobs:
             patch -p1 -F 3 < scope_min_manual_hooks_v1.6_fix.patch
           fi
 
-          echo "📦 应用修复Unicode绕过补丁..."
-          patch -p1 < unicode_bypass_fix_6.1+.patch
-
           echo "✅ 所有补丁应用完成"
+
+      - name: "🛡️ Apply Unicode Bypass Fix | 修复不可见字码点绕过漏洞"
+        if: ${{ github.event.inputs.UNICODE_BYPASS == 'On' }}
+        run: |
+          set -e
+          cd kernel_workspace/kernel_platform/common
+          PATCH_COMMIT="3fed1f691b0abba7011262ea85a113e3f1840ed0"
+
+          case "${{ github.event.inputs.KERNEL_VERSION }}" in
+            5.10|5.15)
+              PATCH_NAME="unicode_bypass_fix_6.1-.patch"
+              ;;
+            6.1|6.6)
+              PATCH_NAME="unicode_bypass_fix_6.1+.patch"
+              ;;
+            *)
+              echo "❌ 未适配的内核版本：${{ github.event.inputs.KERNEL_VERSION }}"
+              exit 1
+              ;;
+          esac
+
+          PATCH_URL="https://raw.githubusercontent.com/shuqf/Action-Build/${PATCH_COMMIT}/patches/${PATCH_NAME}"
+          echo "⬇️ 下载适配补丁：${PATCH_NAME}"
+          curl -fL --retry 3 "$PATCH_URL" -o /tmp/unicode_bypass_fix.patch
+
+          echo "🛡️ 应用 Unicode 不可见字码点绕过读取漏洞修复..."
+          patch -p1 --forward < /tmp/unicode_bypass_fix.patch
+          echo "✅ Unicode 绕过漏洞修复已应用"
 
       # 风驰（SCHED/Fengchi）补丁已禁用
 
