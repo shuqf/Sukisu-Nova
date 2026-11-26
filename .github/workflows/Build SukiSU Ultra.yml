@@ -315,7 +315,14 @@ jobs:
           if [ "${{ github.event.inputs.SUSFS }}" == "On" ]; then          
             git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}
             git -C susfs4ksu checkout 784ac9e6
-            grep -q 'SUSFS_VERSION "2.4.0"' susfs4ksu/kernel_patches/include/linux/susfs.h || { echo "❌ SUSFS 版本不是 2.4.0"; exit 1; }
+            SUSFS_HEADER="susfs4ksu/kernel_patches/include/linux/susfs.h"
+            SUSFS_VERSION=$(sed -nE 's/^[[:space:]]*#define[[:space:]]+SUSFS_VERSION[[:space:]]+"?v?([0-9]+\.[0-9]+\.[0-9]+)"?.*/\1/p' "$SUSFS_HEADER" | head -n 1)
+            if [ "$SUSFS_VERSION" != "2.4.0" ]; then
+              echo "❌ SUSFS 版本校验失败，检测到：${SUSFS_VERSION:-未找到版本宏}，要求：2.4.0"
+              grep -n 'SUSFS_VERSION' "$SUSFS_HEADER" || true
+              exit 1
+            fi
+            echo "✅ 已确认 SUSFS 版本：$SUSFS_VERSION"
           fi
           git clone https://github.com/Xiaomichael/kernel_patches.git
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
