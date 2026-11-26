@@ -19,7 +19,7 @@ on:
           - 'sm7675'
           - 'sm7550'
           - 'sm6375'
-        default: 'sm8650'
+        default: 'sm8475'
         
       FEIL:
         description: "手机型号"
@@ -49,6 +49,7 @@ on:
           - 'oneplus_ace3_b'
           - 'oneplus_open_b'
           - 'oneplus_10t'
+          - 'oneplus_10t_v'
           - 'oneplus_11r'
           - 'oneplus_ace2'
           - 'oneplus_ace_pro'
@@ -56,7 +57,7 @@ on:
           - 'oneplus_ace_3v'
           - 'onrplus_nord_4'
           - 'oneplus_nord_ce4_lite_5g'
-        default: 'oneplus_13r_b'
+        default: 'oneplus_10t_v'
         
       ANDROID_VERSION:
         description: "安卓KMI版本"
@@ -67,7 +68,7 @@ on:
           - 'android14'
           - 'android13'
           - 'android12'
-        default: 'android14'
+        default: 'android12'
         
       KERNEL_VERSION:
         description: "内核版本"
@@ -78,7 +79,7 @@ on:
           - '6.1'
           - '5.15'
           - '5.10'
-        default: '6.1'
+        default: '5.10'
 
       SUSFS:
        description: "是否启用SUSFS"
@@ -87,7 +88,7 @@ on:
        options:
           - 'On'
           - 'Off'
-       default: 'On'
+       default: 'Off'
 
       KPM:
        description: "是否启用KPM"
@@ -96,7 +97,7 @@ on:
        options:
            - 'On'
            - 'Off'
-       default: 'On'
+       default: 'Off'
        
       lz4kd:
        description: "是否启用lz4kd(6.1 关闭时使用 lz4 + zstd; 6.6 关闭时使用 lz4)"
