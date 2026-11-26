@@ -182,11 +182,13 @@ jobs:
           echo "✅ Git配置完成"
 
       # ====================== 依赖管理阶段 ======================
-      - name: "📦 Cache & Install Dependencies | 缓存 & 安装构建依赖"
-        uses: awalsh128/cache-apt-pkgs-action@latest 
-        with: 
-          packages: python3 git curl ccache libelf-dev build-essential flex bison libssl-dev libncurses-dev liblz4-tool zlib1g-dev libxml2-utils rsync unzip gawk dos2unix
-          execute_install_scripts: true
+      - name: "📦 Install Build Dependencies | 安装构建依赖"
+        run: |
+          set -e
+          sudo apt-get update
+          sudo apt-get install -y python3 git curl ccache libelf-dev build-essential flex bison libssl-dev libncurses-dev liblz4-tool zlib1g-dev libxml2-utils rsync unzip gawk dos2unix
+          command -v ccache >/dev/null 2>&1 || { echo "❌ ccache 安装失败"; exit 1; }
+          echo "✅ 构建依赖安装完成，ccache: $(command -v ccache)"
 
       # ====================== 缓存管理阶段 ======================
       - name: "💾 Restore ccache (With SUSFS) | 恢复ccache缓存 (With SUSFS)"
@@ -211,21 +213,24 @@ jobs:
 
       - name: "⚙️ Initialize ccache | 初始化ccache"
         run: |
+          set -e
           echo "🔧 正在初始化ccache..."
           INIT_FLAG="${{ env.CCACHE_DIR }}/.ccache_initialized"
-          
-          if command -v ccache >/dev/null 2>&1; then
-            if [ ! -f "$INIT_FLAG" ]; then
-              mkdir -p "${{ env.CCACHE_DIR }}"
-              ccache -M ${{ env.CCACHE_MAXSIZE }}
-              touch "$INIT_FLAG"
-              echo "✅ ccache初始化完成"
-            else
-              echo "ℹ️ ccache已存在，跳过初始化"
-            fi
-          else
-            echo "⚠️ 未找到ccache命令，跳过初始化"
+
+          if ! command -v ccache >/dev/null 2>&1; then
+            echo "❌ 未找到 ccache 命令，依赖安装步骤可能失败"
+            exit 1
           fi
+
+          if [ ! -f "$INIT_FLAG" ]; then
+            mkdir -p "${{ env.CCACHE_DIR }}"
+            ccache -M ${{ env.CCACHE_MAXSIZE }}
+            touch "$INIT_FLAG"
+            echo "✅ ccache初始化完成"
+          else
+            echo "ℹ️ ccache已存在，跳过初始化"
+          fi
+
           # 显示缓存统计
           ccache -s
           echo "✅ ccache初始化流程完成"
@@ -607,29 +612,3 @@ jobs:
           name: ${{ github.event.inputs.FEIL }}_zram.ko
           path: ./kernel_workspace/kernel_platform/common/out/drivers/block/zram/zram.ko
 
-      - name: "🤖 Get bot script | 获取 bot 脚本"
-        uses: actions/checkout@v4
-        with:
-          path: bot
-
-      - name: "📤 Upload to telegram | 上传至Telegram群组"
-        run: |
-          if [ ! -z "${{ secrets.BOT_TOKEN }}" ]; then
-            echo "📤 正在上传到Telegram..."
-            cd AnyKernel3
-            zip -q -r "../${{ steps.set_name.outputs.ARTIFACT_NAME }}.zip" ./*
-            cd ..
-            pip3 install telethon
-            python3 ./bot/script/buildbot.py "./${{ steps.set_name.outputs.ARTIFACT_NAME }}.zip"
-            echo "✅ 文件已上传到Telegram"
-          fi
-        env:
-          CHATID: ${{secrets.CHATID}}
-          BOT_TOKEN: ${{secrets.BOT_TOKEN}}
-          MESSAGE_THREAD_ID: ${{secrets.MESSAGE_THREAD_ID}}
-          KernelVer: ${{ github.event.inputs.ANDROID_VERSION}}-${{ github.event.inputs.KERNEL_VERSION }}
-          DEVICE: ${{ github.event.inputs.FEIL }}
-          KPM: ${{ github.event.inputs.KPM }}
-          LZ4KD: ${{ github.event.inputs.lz4kd }}
-          BBR: ${{ github.event.inputs.bbr }}
-          KSU_VAR: "SukiSU"
