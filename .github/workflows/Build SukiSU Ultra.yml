@@ -88,7 +88,7 @@ on:
        options:
           - 'On'
           - 'Off'
-       default: 'Off'
+       default: 'On'
 
       KPM:
        description: "是否启用KPM"
@@ -97,7 +97,7 @@ on:
        options:
            - 'On'
            - 'Off'
-       default: 'Off'
+       default: 'On'
        
       lz4kd:
        description: "是否启用lz4kd(6.1 关闭时使用 lz4 + zstd; 6.6 关闭时使用 lz4)"
@@ -279,22 +279,19 @@ jobs:
           curl -sSL https://github.com/vc-teahouse/Baseband-guard/raw/main/setup.sh -o setup.sh
           bash setup.sh     
               
-      - name: "⚡ Setup SukiSU Ultra | 配置 SukiSU Ultra"
+      - name: "⚡ Setup SukiSU Nova | 配置 SukiSU Nova"
         run: |
           cd kernel_workspace/kernel_platform
-          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
+          curl -fLSs "https://raw.githubusercontent.com/SukiSU-Nova/SukiSU-Nova/builtin/kernel/setup.sh" | bash -s builtin
           cd ./KernelSU
-          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 37185)
-          # 验证Makefile存在
-          if [ ! -f "kernel/Makefile" ]; then
-            echo "❌ 错误：缺少kernel/Makefile"
+          if [ ! -f "kernel/Makefile" ] || [ ! -f "kernel/Kconfig" ]; then
+            echo "❌ 错误：SukiSU Nova 内核源码不完整"
             ls -la
             exit 1
           fi
-          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          export KSU_VERSION=$KSU_VERSION
-          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
-          echo "✅ SukiSU Ultra配置完成"
+          KSU_VERSION=$(git rev-list --count main)
+          echo "KSUVER=${KSU_VERSION}" >> "$GITHUB_ENV"
+          echo "✅ SukiSU Nova builtin 分支配置完成"
           
       - name: "🔧 Setup Patches | 配置补丁"
         run: |
@@ -303,6 +300,8 @@ jobs:
           echo "⬇️ 克隆所需补丁..."
           if [ "${{ github.event.inputs.SUSFS }}" == "On" ]; then          
             git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}
+            git -C susfs4ksu checkout 784ac9e6
+            grep -q 'SUSFS_VERSION "2.4.0"' susfs4ksu/kernel_patches/include/linux/susfs.h || { echo "❌ SUSFS 版本不是 2.4.0"; exit 1; }
           fi
           git clone https://github.com/Xiaomichael/kernel_patches.git
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
@@ -564,19 +563,6 @@ jobs:
             cp "$image_path" kernel_workspace/kernel_platform/out/Final-Image-Find/Image
           fi
          
-      - name: "🧩 Patch Kernel Image (KPM) | KPM修补镜像"
-        if: ${{ github.event.inputs.KPM == 'On' }}
-        run: |
-          echo "🔧 正在应用KPM补丁..."
-          cd kernel_workspace/kernel_platform/out/Final-Image-Find
-          curl -LO https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.12.2/patch_linux
-          chmod +x patch_linux
-          ./patch_linux
-          rm -f Image
-          mv oImage Image
-          cp Image $GITHUB_WORKSPACE/AnyKernel3/Image
-          echo "✅ KPM补丁应用完成"
-
       # ====================== 上传阶段 ======================
       - name: "🧠 Set Artifact Name | 设置产物名称"
         id: set_name
