@@ -1,18 +1,23 @@
-# KPM allocator self-test
+# KPM private-buffer self-test
 
-This module tests the SukiSU KernelPatch allocator API from the pinned
-KernelPatch source revision:
+This module checks read/write behavior in a 512-byte static buffer owned by
+the KPM itself (its `.bss` storage):
 
-- `kp_malloc(256)`
-- Write/read verification of a private 256-byte buffer
-- `kp_realloc(..., 512)`
-- Verification that the original bytes survived reallocation
-- Write/read verification of the expanded region
-- `kp_free()`
+- Write and read back the first 256 bytes using a deterministic pattern
+- Write and read back the second 256 bytes using a different pattern
+- Report an overall PASS/FAIL result
+- Re-run the same test through CONTROL0
+- Log module exit when unloaded
 
-It does not call the allocated memory as code, modify kernel-owned data, resolve
-or call arbitrary kernel symbols, or install inline/syscall hooks.
+The test deliberately does **not** call `kp_malloc`, `kp_realloc`,
+`kp_free`, TLSF functions, or other allocator internals. The pinned SukiSU
+KernelPatch build does not expose the allocator symbols needed by an external
+KPM, so this test is not a dynamic-allocation test.
 
-Build with the repository's **KPM Memory Allocator Test** GitHub Actions workflow.
-Load `kpm-memory-selftest.kpm` in SukiSU Nova and inspect the kernel log for
-`[KPM-MEMTEST]` lines. Unload the module afterward and confirm the exit log.
+It does not call arbitrary kernel symbols, install inline/syscall hooks, or
+modify kernel-owned data.
+
+Build with the repository's **KPM Memory Allocator Test** GitHub Actions
+workflow. Load `kpm-memory-selftest.kpm` in SukiSU Nova and inspect the kernel
+log for `[KPM-MEMTEST]` lines. Use CONTROL0 to repeat the test, then unload
+the module and confirm the exit log.
