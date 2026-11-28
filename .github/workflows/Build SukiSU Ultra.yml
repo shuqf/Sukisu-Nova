@@ -570,18 +570,18 @@ jobs:
           ccache -s
           echo "✅ 内核编译完成"
           
-      - name: "🧩 Apply KPM Runtime | 注入 KPM 运行时"
+      - name: "🧩 Apply KPM Runtime | 注入完整 KernelPatch 运行时"
         if: ${{ github.event.inputs.KPM == 'On' }}
         run: |
           set -euo pipefail
 
-          KP_REPO="$GITHUB_WORKSPACE/SukiSU_KernelPatch_patch"
-          KP_COMMIT="1c5b608916357ac86a94cc736e235db1fac4a29d"
+          KP_REPO="$GITHUB_WORKSPACE/KernelPatch"
+          KP_COMMIT="387da612a272e4ac07c79d23d89ba0479866fe2f"
           TOOLCHAIN_ARCHIVE="arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf.tar.xz"
           TOOLCHAIN_DIR="$GITHUB_WORKSPACE/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf"
 
-          echo "📥 获取与 SukiSU Nova KPM ABI v2 匹配的 KernelPatch 源码..."
-          git clone https://github.com/SukiSU-Nova/SukiSU_KernelPatch_patch.git "$KP_REPO"
+          echo "📥 获取 bmax121/KernelPatch 完整源码..."
+          git clone https://github.com/bmax121/KernelPatch.git "$KP_REPO"
           git -C "$KP_REPO" checkout --detach "$KP_COMMIT"
           test "$(git -C "$KP_REPO" rev-parse HEAD)" = "$KP_COMMIT"
 
@@ -589,18 +589,16 @@ jobs:
           curl -fL --retry 3 --retry-delay 2 -o "$TOOLCHAIN_ARCHIVE" "https://armkeil.blob.core.windows.net/developer/Files/downloads/gnu/12.2.rel1/binrel/$TOOLCHAIN_ARCHIVE"
           tar -Jxf "$TOOLCHAIN_ARCHIVE" -C "$GITHUB_WORKSPACE"
 
-          echo "🔨 编译 Android kpimg..."
           export TARGET_COMPILE="$TOOLCHAIN_DIR/bin/aarch64-none-elf-"
           export ANDROID=1
-          make -C "$KP_REPO/kernel" kpimg
+
+          echo "🔨 按 KernelPatch 官方完整流程编译 kpimg..."
+          make -C "$KP_REPO/kernel" -j"$(nproc --all)"
           test -s "$KP_REPO/kernel/kpimg"
 
-          echo "🔨 编译 kptools..."
-          sudo apt-get install -y cmake zlib1g-dev
-          cp "$KP_REPO/kernel/include/preset.h" "$KP_REPO/tools/preset.h"
-          cmake -S "$KP_REPO/tools" -B "$KP_REPO/tools/build" -DCMAKE_BUILD_TYPE=Release
-          cmake --build "$KP_REPO/tools/build" --parallel
-          KPT="$KP_REPO/tools/build/kptools"
+          echo "🔨 按 KernelPatch 官方 Makefile 编译 kptools..."
+          make -C "$KP_REPO/tools" -j"$(nproc --all)"
+          KPT="$KP_REPO/tools/kptools"
           test -x "$KPT"
 
           echo "🔎 定位待修补的 ARM64 Image..."
@@ -610,7 +608,7 @@ jobs:
             exit 1
           fi
 
-          echo "🧩 使用 kpimg 修补内核 Image..."
+          echo "🧩 使用完整 KernelPatch kpimg 修补内核 Image..."
           PATCHED_IMAGE="$GITHUB_WORKSPACE/patched-Image"
           "$KPT" -p -i "$IMAGE_PATH" -k "$KP_REPO/kernel/kpimg" -o "$PATCHED_IMAGE"
           test -s "$PATCHED_IMAGE"
@@ -623,7 +621,7 @@ jobs:
           }
 
           cp "$PATCHED_IMAGE" "$IMAGE_PATH"
-          echo "✅ KPM 运行时已注入，后续 AnyKernel3 将打包修补后的 Image"
+          echo "✅ 完整 KernelPatch KPM 运行时已注入，后续 AnyKernel3 将打包修补后的 Image"
 
       - name: "📦 Package Kernel | 打包内核"
         run: |
