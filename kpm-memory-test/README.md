@@ -1,23 +1,16 @@
-# KPM private-buffer self-test
+# KPM initialized .data buffer self-test
 
-This module checks read/write behavior in a 512-byte static buffer owned by
-the KPM itself (its `.bss` storage):
+This module checks basic read/write behavior using a 512-byte, initialized,
+volatile static buffer. Its non-zero initializer places the buffer in the ELF
+`.data` section rather than `.bss`.
 
-- Write and read back the first 256 bytes using a deterministic pattern
-- Write and read back the second 256 bytes using a different pattern
-- Report an overall PASS/FAIL result
-- Re-run the same test through CONTROL0
-- Log module exit when unloaded
+- Writes and reads back two 256-byte regions.
+- Reports the first mismatching offset, expected byte, and actual byte.
+- CONTROL0 reruns the same test.
+- EXIT reports module unload.
+- Does not use a dynamic allocator, install hooks, call kernel functions
+  through resolved addresses, or intentionally modify kernel data.
 
-The test deliberately does **not** call `kp_malloc`, `kp_realloc`,
-`kp_free`, TLSF functions, or other allocator internals. The pinned SukiSU
-KernelPatch build does not expose the allocator symbols needed by an external
-KPM, so this test is not a dynamic-allocation test.
-
-It does not call arbitrary kernel symbols, install inline/syscall hooks, or
-modify kernel-owned data.
-
-Build with the repository's **KPM Memory Allocator Test** GitHub Actions
-workflow. Load `kpm-memory-selftest.kpm` in SukiSU Nova and inspect the kernel
-log for `[KPM-MEMTEST]` lines. Use CONTROL0 to repeat the test, then unload
-the module and confirm the exit log.
+This is a diagnostic for initialized KPM data storage. It is **not** a test of
+the `.bss` section or of KernelPatch's dynamic allocator. A PASS does not
+establish that all KPM memory facilities work.
