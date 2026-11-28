@@ -570,20 +570,27 @@ jobs:
           ccache -s
           echo "✅ 内核编译完成"
           
-      - name: "🧩 Apply KPM Runtime | 注入完整 KernelPatch 运行时"
+      - name: "🧩 Apply KPM Runtime | 注入 SukiSU ABI v2 KernelPatch 运行时"
         if: ${{ github.event.inputs.KPM == 'On' }}
         run: |
           set -euo pipefail
 
           KP_REPO="$GITHUB_WORKSPACE/KernelPatch"
-          KP_COMMIT="387da612a272e4ac07c79d23d89ba0479866fe2f"
+          KP_COMMIT="1c5b608916357ac86a94cc736e235db1fac4a29d"
           TOOLCHAIN_ARCHIVE="arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf.tar.xz"
           TOOLCHAIN_DIR="$GITHUB_WORKSPACE/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf"
 
-          echo "📥 获取 bmax121/KernelPatch 完整源码..."
-          git clone https://github.com/bmax121/KernelPatch.git "$KP_REPO"
+          echo "📥 获取 SukiSU 官方 ABI v2 KernelPatch..."
+          git clone https://github.com/SukiSU-Nova/SukiSU_KernelPatch_patch.git "$KP_REPO"
           git -C "$KP_REPO" checkout --detach "$KP_COMMIT"
           test "$(git -C "$KP_REPO" rev-parse HEAD)" = "$KP_COMMIT"
+
+          echo "🔎 验证 ABI v2 桥接源码和运行时安装入口..."
+          grep -q 'SUKISU_KPM_ABI_VERSION 2' "$KP_REPO/kernel/patch/sukisu/supercall.h"
+          grep -q 'sukisu_kpm_supercall_install' "$KP_REPO/kernel/patch/sukisu/sukisu.c"
+          grep -q 'sukisu_kpm_supercall_install' "$KP_REPO/kernel/patch/patch.c"
+          grep -q 'patch/sukisu/\*.c' "$KP_REPO/kernel/Makefile"
+          echo "✅ 已确认 ABI v2、SuperCall handler 和启动安装入口均存在"
 
           echo "📥 安装 ARM64 bare-metal 工具链..."
           curl -fL --retry 3 --retry-delay 2 -o "$TOOLCHAIN_ARCHIVE" "https://armkeil.blob.core.windows.net/developer/Files/downloads/gnu/12.2.rel1/binrel/$TOOLCHAIN_ARCHIVE"
@@ -592,11 +599,11 @@ jobs:
           export TARGET_COMPILE="$TOOLCHAIN_DIR/bin/aarch64-none-elf-"
           export ANDROID=1
 
-          echo "🔨 按 KernelPatch 官方完整流程编译 kpimg..."
+          echo "🔨 编译包含 SukiSU ABI v2 桥接的完整 kpimg..."
           make -C "$KP_REPO/kernel" -j"$(nproc --all)"
           test -s "$KP_REPO/kernel/kpimg"
 
-          echo "🔨 按 KernelPatch 官方 Makefile 编译 kptools..."
+          echo "🔨 编译配套 kptools..."
           make -C "$KP_REPO/tools" -j"$(nproc --all)"
           KPT="$KP_REPO/tools/kptools"
           test -x "$KPT"
@@ -608,7 +615,7 @@ jobs:
             exit 1
           fi
 
-          echo "🧩 使用完整 KernelPatch kpimg 修补内核 Image..."
+          echo "🧩 使用 SukiSU ABI v2 kpimg 修补内核 Image..."
           PATCHED_IMAGE="$GITHUB_WORKSPACE/patched-Image"
           "$KPT" -p -i "$IMAGE_PATH" -k "$KP_REPO/kernel/kpimg" -o "$PATCHED_IMAGE"
           test -s "$PATCHED_IMAGE"
@@ -621,7 +628,7 @@ jobs:
           }
 
           cp "$PATCHED_IMAGE" "$IMAGE_PATH"
-          echo "✅ 完整 KernelPatch KPM 运行时已注入，后续 AnyKernel3 将打包修补后的 Image"
+          echo "✅ SukiSU ABI v2 KernelPatch 运行时已注入，后续 AnyKernel3 将打包修补后的 Image"
 
       - name: "📦 Package Kernel | 打包内核"
         run: |
